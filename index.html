@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Snake Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <canvas id="particles"></canvas>
+
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🐍 SNAKE 3D </h1>
+        </div>
+
+        <div class="score-board">
+            <div class="score-item">SCORE: <span id="score">0</span></div>
+            <div class="score-item">BEST: <span id="highScore">0</span></div>
+        </div>
+
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+        <div class="controls">
+            <p>🎮 Arrow Keys or WASD to Move</p>
+            <p>🍎 Collect Food to Grow Longer</p>
+            <button class="btn" onclick="restartGame()">Restart Game</button>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <h2>GAME OVER!</h2>
+        <p>Final Score:</p>
+        <p class="final-score" id="finalScore">0</p>
+        <button class="btn" onclick="restartGame()">Play Again</button>
+    </div>
+
+    <div class="signature">Developer Tzinavos</div>
+
+    <div class="social-links">
+        <a href="https://www.facebook.com/profile.php?id=100009589907609" target="_blank" title="Facebook"> Facebookⓕ</a>
+        <a href="https://www.instagram.com/mhtsos_tzinavos/" target="_blank" title="Instagram">Instagram 🅾</a>
+        <a href="https://github.com/G-Developerr" target="_blank" title="GitHub">GitHub 💻</a>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
