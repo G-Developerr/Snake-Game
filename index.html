@@ -6,14 +6,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Snake Game</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
 </head>
 
 <body>
     <canvas id="particles"></canvas>
 
+    <div class="tutorial-screen" id="tutorialScreen">
+        <div class="tutorial-content">
+            <div class="tutorial-title">🐍 WELCOME TO SNAKE 3D</div>
+
+            <div class="controls-display">
+                <div class="tutorial-text">Use Arrow Keys or WASD to Move</div>
+
+                <div class="keys-container">
+                    <div class="arrow-keys">
+                        <div class="key-button key-up">↑</div>
+                        <div class="key-button key-left">←</div>
+                        <div class="key-button key-down">↓</div>
+                        <div class="key-button key-right">→</div>
+                    </div>
+
+                    <div class="tutorial-text" style="font-size: 2em; margin: 0;">OR</div>
+
+                    <div class="wasd-keys">
+                        <div class="key-button key-up">W</div>
+                        <div class="key-button key-left">A</div>
+                        <div class="key-button key-down">S</div>
+                        <div class="key-button key-right">D</div>
+                    </div>
+                </div>
+
+                <div class="tutorial-text">
+                    🍎 Eat apples to grow longer<br> ⚡ Speed increases as you score<br> ⏸️ Press ESC to pause
+                </div>
+            </div>
+
+            <div class="start-prompt">Press any arrow key or WASD to start!</div>
+        </div>
+    </div>
+
     <div class="game-container">
         <div class="game-header">
-            <h1>🐍 SNAKE 3D </h1>
+            <h1>🐍 SNAKE 3D</h1>
         </div>
 
         <div class="score-board">
@@ -30,6 +65,22 @@
         </div>
     </div>
 
+    <!-- Mobile Controls - Compact Directional Arrows -->
+    <div class="mobile-controls">
+        <div class="directional-pad">
+            <div class="arrow-btn arrow-up" id="arrowUp">↑</div>
+            <div class="arrow-btn arrow-left" id="arrowLeft">←</div>
+            <div class="arrow-btn arrow-center">•</div>
+            <div class="arrow-btn arrow-right" id="arrowRight">→</div>
+            <div class="arrow-btn arrow-down" id="arrowDown">↓</div>
+        </div>
+    </div>
+
+    <div class="mobile-buttons">
+        <div class="mobile-btn" id="pauseBtn">⏸️</div>
+        <div class="mobile-btn" id="restartBtn">🔄</div>
+    </div>
+
     <div class="game-over" id="gameOver">
         <h2>GAME OVER!</h2>
         <p>Final Score:</p>
@@ -37,12 +88,18 @@
         <button class="btn" onclick="restartGame()">Play Again</button>
     </div>
 
+    <div class="pause-screen" id="pauseScreen">
+        <h2>⏸️ PAUSED</h2>
+        <p>Press ESC to continue</p>
+        <button class="btn" onclick="togglePause()">Resume</button>
+    </div>
+
     <div class="signature">Developer Tzinavos</div>
 
     <div class="social-links">
-        <a href="https://www.facebook.com/profile.php?id=100009589907609" target="_blank" title="Facebook"> Facebookⓕ</a>
-        <a href="https://www.instagram.com/mhtsos_tzinavos/" target="_blank" title="Instagram">Instagram 🅾</a>
-        <a href="https://github.com/G-Developerr" target="_blank" title="GitHub">GitHub 💻</a>
+        <a href="https://www.facebook.com/profile.php?id=100009589907609" target="_blank" title="Facebook">Facebook</a>
+        <a href="https://www.instagram.com/mhtsos_tzinavos/" target="_blank" title="Instagram">Instagram</a>
+        <a href="https://github.com/G-Developerr" target="_blank" title="GitHub">GitHub</a>
     </div>
 
     <script src="script.js"></script>
