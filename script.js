@@ -42,22 +42,150 @@ const scoreElement = document.getElementById("score");
 const highScoreElement = document.getElementById("highScore");
 const gameOverElement = document.getElementById("gameOver");
 const finalScoreElement = document.getElementById("finalScore");
+const tutorialScreen = document.getElementById("tutorialScreen");
+const pauseScreen = document.getElementById("pauseScreen");
+
+// Mobile elements
+const arrowUp = document.getElementById("arrowUp");
+const arrowDown = document.getElementById("arrowDown");
+const arrowLeft = document.getElementById("arrowLeft");
+const arrowRight = document.getElementById("arrowRight");
+const pauseBtn = document.getElementById("pauseBtn");
+const restartBtn = document.getElementById("restartBtn");
 
 const gridSize = 30;
 const tileCount = canvas.width / gridSize;
 
-let snake = [{ x: 10, y: 10 }];
-let food = { x: 15, y: 15 };
+let snake = [{
+    x: 10,
+    y: 10,
+}, ];
+let food = {
+    x: 15,
+    y: 15,
+};
 let dx = 0;
 let dy = 0;
 let score = 0;
-let highScore = localStorage.getItem("snake3DHighScore") || 0;
-let gameRunning = true;
-let gameSpeed = 120;
+let highScore = localStorage.getItem("snakeHighScore") || 0;
+let gameRunning = false;
+let gameSpeed = 200;
+let gamePaused = false;
+let isEating = false;
+let eatAnimationFrame = 0;
+let gameStarted = false;
+let lastUpdateTime = 0;
+
+let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+);
 
 highScoreElement.textContent = highScore;
 
-document.addEventListener("keydown", changeDirection);
+// Hide tutorial on mobile devices immediately
+if (isMobile) {
+    tutorialScreen.style.display = "none";
+    gameStarted = true;
+}
+
+document.addEventListener("keydown", handleKeyPress);
+
+// Mobile event listeners
+if (isMobile) {
+    setupMobileControls();
+}
+
+function setupMobileControls() {
+    // Arrow buttons events
+    arrowUp.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        if (dy === 0) {
+            dx = 0;
+            dy = -1;
+            startGameIfNeeded();
+        }
+    });
+
+    arrowDown.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        if (dy === 0) {
+            dx = 0;
+            dy = 1;
+            startGameIfNeeded();
+        }
+    });
+
+    arrowLeft.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        if (dx === 0) {
+            dx = -1;
+            dy = 0;
+            startGameIfNeeded();
+        }
+    });
+
+    arrowRight.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        if (dx === 0) {
+            dx = 1;
+            dy = 0;
+            startGameIfNeeded();
+        }
+    });
+
+    // Button events
+    pauseBtn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        togglePause();
+    });
+
+    restartBtn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        restartGame();
+    });
+}
+
+function startGameIfNeeded() {
+    if (!gameRunning && gameStarted) {
+        gameRunning = true;
+        lastUpdateTime = performance.now();
+        requestAnimationFrame(drawGame);
+    }
+}
+
+function handleKeyPress(e) {
+    const key = e.key.toLowerCase();
+
+    // Αν δεν έχει αρχίσει το παιχνίδι, έλεγχος για έναρξη
+    if (!gameStarted) {
+        const validKeys = ["arrowleft", "arrowup", "arrowright", "arrowdown", "a", "w", "d", "s"];
+        if (validKeys.includes(key)) {
+            startGame(e);
+        }
+        return;
+    }
+
+    // Παύση
+    if (e.key === "Escape" || e.key === "Esc") {
+        togglePause();
+        return;
+    }
+
+    changeDirection(e);
+}
+
+function startGame(e) {
+    tutorialScreen.classList.add("hide");
+    setTimeout(() => {
+        tutorialScreen.style.display = "none";
+    }, 500);
+
+    gameStarted = true;
+    gameRunning = true;
+    changeDirection(e);
+    lastUpdateTime = performance.now();
+    requestAnimationFrame(drawGame);
+}
 
 function changeDirection(e) {
     const key = e.key.toLowerCase();
@@ -77,14 +205,55 @@ function changeDirection(e) {
     }
 }
 
-function drawGame() {
-    if (!gameRunning) return;
-    clearCanvas();
-    moveSnake();
-    drawSnake();
-    drawFood();
-    checkCollision();
-    setTimeout(drawGame, gameSpeed);
+function togglePause() {
+    gamePaused = !gamePaused;
+
+    if (gamePaused) {
+        pauseScreen.classList.add("show");
+    } else {
+        pauseScreen.classList.remove("show");
+        if (gameRunning) {
+            lastUpdateTime = performance.now();
+            requestAnimationFrame(drawGame);
+        }
+    }
+}
+
+function drawGame(timestamp) {
+    if (!gameRunning || gamePaused) {
+        requestAnimationFrame(drawGame);
+        return;
+    }
+
+    // Χρήση delta time για σταθερή ταχύτητα
+    if (!lastUpdateTime) lastUpdateTime = timestamp;
+    const deltaTime = timestamp - lastUpdateTime;
+
+    // Ενημέρωση μόνο όταν περάσει ο απαιτούμενος χρόνος
+    if (deltaTime > gameSpeed) {
+        lastUpdateTime = timestamp - (deltaTime % gameSpeed);
+
+        clearCanvas();
+        moveSnake();
+        checkCollision();
+
+        // ΠΡΩΤΑ το φαγητό
+        drawFood();
+
+        // ΜΕΤΑ το φίδι (για να είναι πάνω από το φαγητό)
+        drawSnake();
+
+        if (isEating) {
+            eatAnimationFrame++;
+            if (eatAnimationFrame > 5) {
+                isEating = false;
+                eatAnimationFrame = 0;
+            }
+        }
+    }
+
+    // Συνεχίζουμε το game loop
+    requestAnimationFrame(drawGame);
 }
 
 function clearCanvas() {
@@ -119,18 +288,33 @@ function clearCanvas() {
 function moveSnake() {
     if (dx === 0 && dy === 0) return;
 
-    const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+    const head = {
+        x: snake[0].x + dx,
+        y: snake[0].y + dy,
+    };
+
+    // Wrap-around πριν προσθέσουμε το νέο κεφάλι
+    if (head.x < 0) head.x = tileCount - 1;
+    else if (head.x >= tileCount) head.x = 0;
+    if (head.y < 0) head.y = tileCount - 1;
+    else if (head.y >= tileCount) head.y = 0;
+
     snake.unshift(head);
 
     if (head.x === food.x && head.y === food.y) {
         score++;
         scoreElement.textContent = score;
         generateFood();
+        isEating = true;
+        eatAnimationFrame = 0;
+
+        // Ταχύτητα όπως ήταν - αργή στην αρχή και γρήγορη με τους πόντους
+        gameSpeed = Math.max(120, 200 - score * 5);
 
         if (score > highScore) {
             highScore = score;
             highScoreElement.textContent = highScore;
-            localStorage.setItem("snake3DHighScore", highScore);
+            localStorage.setItem("snakeHighScore", highScore);
         }
     } else {
         snake.pop();
@@ -138,72 +322,235 @@ function moveSnake() {
 }
 
 function drawSnake() {
-    snake.forEach((segment, index) => {
-        const x = segment.x * gridSize;
-        const y = segment.y * gridSize;
-        const size = gridSize - 4;
-        const colorIntensity = 1 - (index / snake.length) * 0.3;
+    if (snake.length === 0) return;
 
-        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-        ctx.fillRect(x + 3, y + 3, size, size);
+    // Βρες τα σημεία όπου γίνεται wrap-around
+    const wrapPoints = [];
+    for (let i = 1; i < snake.length; i++) {
+        const prev = snake[i - 1];
+        const curr = snake[i];
 
-        const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
-        if (index === 0) {
-            gradient.addColorStop(0, `rgba(0, 242, 96, ${colorIntensity})`);
-            gradient.addColorStop(1, `rgba(5, 117, 230, ${colorIntensity})`);
+        // Έλεγχος για οριζόντιο wrap-around
+        if (Math.abs(curr.x - prev.x) > 1) {
+            wrapPoints.push(i);
+        }
+        // Έλεγχος για κάθετο wrap-around
+        if (Math.abs(curr.y - prev.y) > 1) {
+            wrapPoints.push(i);
+        }
+    }
+
+    // Σχεδίαση του φιδιού σε τμήματα
+    let startIndex = 0;
+
+    for (const wrapIndex of[...wrapPoints, snake.length]) {
+        // Σχεδίαση του τμήματος από startIndex έως wrapIndex
+        if (wrapIndex - startIndex > 1) {
+            drawSnakeSegment(startIndex, wrapIndex);
+        }
+        startIndex = wrapIndex;
+    }
+
+    // Σχεδίαση κεφαλιού ξεχωριστά
+    drawSnakeHead();
+}
+
+function drawSnakeSegment(startIndex, endIndex) {
+    ctx.save();
+
+    ctx.beginPath();
+
+    for (let i = startIndex; i < endIndex; i++) {
+        const segment = snake[i];
+        const x = segment.x * gridSize + gridSize / 2;
+        const y = segment.y * gridSize + gridSize / 2;
+
+        if (i === startIndex) {
+            ctx.moveTo(x, y);
         } else {
-            gradient.addColorStop(0, `rgba(0, 200, 80, ${colorIntensity})`);
-            gradient.addColorStop(1, `rgba(5, 100, 200, ${colorIntensity})`);
+            const prevSegment = snake[i - 1];
+            const prevX = prevSegment.x * gridSize + gridSize / 2;
+            const prevY = prevSegment.y * gridSize + gridSize / 2;
+
+            const cpX = (prevX + x) / 2;
+            const cpY = (prevY + y) / 2;
+            ctx.quadraticCurveTo(prevX, prevY, cpX, cpY);
         }
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x, y, size, size);
+    }
 
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * colorIntensity})`;
-        ctx.fillRect(x, y, size, 2);
-        ctx.fillRect(x, y, 2, size);
+    // Gradient για το τμήμα
+    const startSegment = snake[startIndex];
+    const endSegment = snake[endIndex - 1];
+    const startX = startSegment.x * gridSize + gridSize / 2;
+    const startY = startSegment.y * gridSize + gridSize / 2;
+    const endX = endSegment.x * gridSize + gridSize / 2;
+    const endY = endSegment.y * gridSize + gridSize / 2;
 
-        ctx.fillStyle = `rgba(0, 0, 0, ${0.4 * colorIntensity})`;
-        ctx.fillRect(x, y + size - 2, size, 2);
-        ctx.fillRect(x + size - 2, y, 2, size);
+    const bodyGradient = ctx.createLinearGradient(startX, startY, endX, endY);
+    bodyGradient.addColorStop(0, startIndex === 0 ? "#00ff80" : "#00cc66");
+    bodyGradient.addColorStop(1, "#009944");
 
-        if (index === 0) {
-            const eyeSize = 6;
-            const eyeOffset = 8;
+    ctx.strokeStyle = bodyGradient;
+    ctx.lineWidth = gridSize * 0.8;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
 
-            // Eye whites
-            ctx.fillStyle = "white";
-            ctx.beginPath();
-            ctx.arc(x + eyeOffset, y + eyeOffset, eyeSize, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(x + size - eyeOffset, y + eyeOffset, eyeSize, 0, Math.PI * 2);
-            ctx.fill();
+    // Overlay με φωτεινότητα
+    ctx.beginPath();
+    for (let i = startIndex; i < endIndex; i++) {
+        const segment = snake[i];
+        const x = segment.x * gridSize + gridSize / 2;
+        const y = segment.y * gridSize + gridSize / 2;
 
-            // Pupils
-            ctx.fillStyle = "#000";
-            const pupilOffsetX = dx * 2;
-            const pupilOffsetY = dy * 2;
-            ctx.beginPath();
-            ctx.arc(x + eyeOffset + pupilOffsetX, y + eyeOffset + pupilOffsetY, 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(x + size - eyeOffset + pupilOffsetX, y + eyeOffset + pupilOffsetY, 3, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Glow
-            ctx.shadowColor = "#00f260";
-            ctx.shadowBlur = 20;
-            ctx.strokeStyle = "#00f260";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x, y, size, size);
-            ctx.shadowBlur = 0;
+        if (i === startIndex) {
+            ctx.moveTo(x, y);
+        } else {
+            const prevSegment = snake[i - 1];
+            const prevX = prevSegment.x * gridSize + gridSize / 2;
+            const prevY = prevSegment.y * gridSize + gridSize / 2;
+            const cpX = (prevX + x) / 2;
+            const cpY = (prevY + y) / 2;
+            ctx.quadraticCurveTo(prevX, prevY, cpX, cpY);
         }
+    }
 
-        if (index > 0 && index % 2 === 0) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * colorIntensity})`;
-            ctx.fillRect(x + size / 4, y + size / 4, size / 2, size / 2);
+    const highlightGradient = ctx.createLinearGradient(
+        startX - 10,
+        startY - 10,
+        startX + 10,
+        startY + 10
+    );
+    highlightGradient.addColorStop(0, "rgba(255, 255, 255, 0.3)");
+    highlightGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+    ctx.strokeStyle = highlightGradient;
+    ctx.lineWidth = gridSize * 0.4;
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function drawSnakeHead() {
+    const head = snake[0];
+    const headCenterX = head.x * gridSize + gridSize / 2;
+    const headCenterY = head.y * gridSize + gridSize / 2;
+    const headRadius = gridSize / 2;
+
+    // Κύριο κεφάλι
+    const headGradient = ctx.createRadialGradient(
+        headCenterX - 5,
+        headCenterY - 5,
+        0,
+        headCenterX,
+        headCenterY,
+        headRadius
+    );
+    headGradient.addColorStop(0, "#00ff99");
+    headGradient.addColorStop(1, "#00cc66");
+
+    ctx.fillStyle = headGradient;
+    ctx.beginPath();
+    ctx.arc(headCenterX, headCenterY, headRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Μάτια
+    const eyeSize = 5;
+    const eyeOffset = 8;
+
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(headCenterX - eyeOffset, headCenterY - eyeOffset, eyeSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(headCenterX + eyeOffset, headCenterY - eyeOffset, eyeSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Κόρες
+    ctx.fillStyle = "#000";
+    const pupilOffsetX = dx * 2;
+    const pupilOffsetY = dy * 2;
+    ctx.beginPath();
+    ctx.arc(
+        headCenterX - eyeOffset + pupilOffsetX,
+        headCenterY - eyeOffset + pupilOffsetY,
+        2.5,
+        0,
+        Math.PI * 2
+    );
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(
+        headCenterX + eyeOffset + pupilOffsetX,
+        headCenterY - eyeOffset + pupilOffsetY,
+        2.5,
+        0,
+        Math.PI * 2
+    );
+    ctx.fill();
+
+    // Animation φαγητού - στόμα/γλώσσα
+    if (isEating) {
+        ctx.strokeStyle = "#ff0066";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+
+        const tongueLength = eatAnimationFrame * 3;
+
+        ctx.beginPath();
+        if (dx === 1) {
+            ctx.moveTo(headCenterX + headRadius, headCenterY);
+            ctx.lineTo(headCenterX + headRadius + tongueLength, headCenterY);
+        } else if (dx === -1) {
+            ctx.moveTo(headCenterX - headRadius, headCenterY);
+            ctx.lineTo(headCenterX - headRadius - tongueLength, headCenterY);
+        } else if (dy === 1) {
+            ctx.moveTo(headCenterX, headCenterY + headRadius);
+            ctx.lineTo(headCenterX, headCenterY + headRadius + tongueLength);
+        } else if (dy === -1) {
+            ctx.moveTo(headCenterX, headCenterY - headRadius);
+            ctx.lineTo(headCenterX, headCenterY - headRadius - tongueLength);
         }
-    });
+        ctx.stroke();
+
+        // Διχαλωτή γλώσσα
+        ctx.strokeStyle = "#ff0066";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (dx === 1) {
+            const tipX = headCenterX + headRadius + tongueLength;
+            ctx.moveTo(tipX, headCenterY);
+            ctx.lineTo(tipX + 3, headCenterY - 3);
+            ctx.moveTo(tipX, headCenterY);
+            ctx.lineTo(tipX + 3, headCenterY + 3);
+        } else if (dx === -1) {
+            const tipX = headCenterX - headRadius - tongueLength;
+            ctx.moveTo(tipX, headCenterY);
+            ctx.lineTo(tipX - 3, headCenterY - 3);
+            ctx.moveTo(tipX, headCenterY);
+            ctx.lineTo(tipX - 3, headCenterY + 3);
+        } else if (dy === 1) {
+            const tipY = headCenterY + headRadius + tongueLength;
+            ctx.moveTo(headCenterX, tipY);
+            ctx.lineTo(headCenterX - 3, tipY + 3);
+            ctx.moveTo(headCenterX, tipY);
+            ctx.lineTo(headCenterX + 3, tipY + 3);
+        } else if (dy === -1) {
+            const tipY = headCenterY - headRadius - tongueLength;
+            ctx.moveTo(headCenterX, tipY);
+            ctx.lineTo(headCenterX - 3, tipY - 3);
+            ctx.moveTo(headCenterX, tipY);
+            ctx.lineTo(headCenterX + 3, tipY - 3);
+        }
+        ctx.stroke();
+    }
+
+    // Φωτεινό περίγραμμα κεφαλιού
+    ctx.strokeStyle = "#00f260";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(headCenterX, headCenterY, headRadius, 0, Math.PI * 2);
+    ctx.stroke();
 }
 
 function drawFood() {
@@ -212,14 +559,8 @@ function drawFood() {
     const size = gridSize - 4;
     const centerX = x + size / 2;
     const centerY = y + size / 2;
-    const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
 
-    const glowGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, size);
-    glowGradient.addColorStop(0, `rgba(255, 50, 50, ${0.6 * pulse})`);
-    glowGradient.addColorStop(1, "rgba(255, 50, 50, 0)");
-    ctx.fillStyle = glowGradient;
-    ctx.fillRect(x - 10, y - 10, size + 20, size + 20);
-
+    // Μήλο
     const appleGradient = ctx.createRadialGradient(
         centerX - 5,
         centerY - 5,
@@ -235,13 +576,13 @@ function drawFood() {
     ctx.arc(centerX, centerY, size / 2, 0, Math.PI * 2);
     ctx.fill();
 
-
+    // Φωτεινή κουκίδα
     ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
     ctx.beginPath();
     ctx.arc(centerX - 4, centerY - 4, size / 6, 0, Math.PI * 2);
     ctx.fill();
 
-
+    // Κοτσάνι
     ctx.strokeStyle = "#8b4513";
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -249,10 +590,10 @@ function drawFood() {
     ctx.lineTo(centerX - 2, centerY - size / 2 - 5);
     ctx.stroke();
 
-
-    ctx.fillStyle = "#4ecca3";
+    // Φύλλο - μικρότερο και πιο σκούρο
+    ctx.fillStyle = "#2d5f3f";
     ctx.beginPath();
-    ctx.ellipse(centerX + 3, centerY - size / 2 - 3, 4, 2, Math.PI / 4, 0, Math.PI * 2);
+    ctx.ellipse(centerX + 2, centerY - size / 2 - 5, 3, 1.5, Math.PI / 4, 0, Math.PI * 2);
     ctx.fill();
 }
 
@@ -271,11 +612,7 @@ function generateFood() {
 function checkCollision() {
     const head = snake[0];
 
-    if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
-        endGame();
-        return;
-    }
-
+    // Έλεγχος για σύγκρουση με το σώμα
     for (let i = 1; i < snake.length; i++) {
         if (head.x === snake[i].x && head.y === snake[i].y) {
             endGame();
@@ -291,15 +628,28 @@ function endGame() {
 }
 
 function restartGame() {
-    snake = [{ x: 10, y: 10 }];
-    food = { x: 15, y: 15 };
+    snake = [{
+        x: 10,
+        y: 10,
+    }, ];
+    food = {
+        x: 15,
+        y: 15,
+    };
     dx = 0;
     dy = 0;
     score = 0;
     scoreElement.textContent = score;
     gameRunning = true;
+    gamePaused = false;
+    gameSpeed = 200; // Επαναφορά στην αρχική ταχύτητα
+    isEating = false;
+    eatAnimationFrame = 0;
+    lastUpdateTime = 0;
     gameOverElement.classList.remove("show");
-    drawGame();
+    pauseScreen.classList.remove("show");
+    lastUpdateTime = performance.now();
+    requestAnimationFrame(drawGame);
 }
 
 window.addEventListener("resize", () => {
@@ -307,4 +657,7 @@ window.addEventListener("resize", () => {
     particleCanvas.height = window.innerHeight;
 });
 
-drawGame();
+// Αρχική σχεδίαση χωρίς κίνηση
+clearCanvas();
+drawFood();
+drawSnake();
